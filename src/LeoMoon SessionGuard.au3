@@ -17,14 +17,15 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon SessionGuard)
 #pragma compile(FileDescription, LeoMoon SessionGuard)
-#pragma compile(FileVersion, 1.3.0.0)
+#pragma compile(FileVersion, 1.3.1.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.3.0.0)
+#pragma compile(ProductVersion, 1.3.1.0)
 
+#include <String.au3>
 #include <Timers.au3>
-#include <Date.au3>
+;~ #include <Date.au3>
 #include <Constants.au3>
 #include <StaticConstants.au3>
 #include <Misc.au3>
@@ -42,9 +43,10 @@ OnAutoItExitRegister("_PowerResetState")
 
 ;global vars
 Global $title = 'LeoMoon SessionGuard'
-Global $ver = '1.3'
+Global $ver = '1.3.1'
 Global $enabled = True
 Global $emu = True
+Global $winViz = False
 Global $emuVal = 30
 Global $ini = @ScriptDir&'\'&$title&'.ini'
 ;global gui vars
@@ -113,6 +115,7 @@ While 1
     Switch $nMsg
         Case $GUI_EVENT_CLOSE, $cancelBtn ;, $escDummy
             GUIDelete($gui)
+            $winVis = False
         Case $emuCbox
             If BitAND(GUICtrlRead($emuCbox), $GUI_CHECKED) == 1 Then
                 GUICtrlSetState($secCombo, $GUI_ENABLE)
@@ -128,6 +131,7 @@ While 1
                 RegDelete("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", $title)
             EndIf
             GUIDelete($gui)
+            $winVis = False
     EndSwitch
     $tMsg = TrayGetMsg()
     Switch $tMsg
@@ -153,34 +157,40 @@ Exit
 Func _gui()
     ;~ $gui = GUICreate("Hotkey Settings", 386, 242, -1, -1) ;close and minimize
     ;~ $gui = GUICreate("Hotkey Settings", 386, 242, -1, -1, BitOR($WS_SYSMENU,$WS_POPUP)) ;frame only
-    $gui = GUICreate($title&" Settings", 386+7, 202+29, -1, -1, $WS_SYSMENU)
-    GUISetIcon(@ScriptFullPath, 201)
-    GUISetFont(9, 400, 0, "MS Sans Serif")
-    $optionsGrp = GUICtrlCreateGroup("Options", 8, 8, 371, 81)
-    $startupCbox = GUICtrlCreateCheckbox("Start with Windows", 16, 56, 273, 17)
-    $emuCbox = GUICtrlCreateCheckbox("Emulate Mouse Move Every", 16, 32, 193, 17)
-    GUICtrlSetState(-1, $GUI_CHECKED)
-    $secCombo = GUICtrlCreateCombo("", 216, 28, 153, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-    GUICtrlSetData(-1, "5 Seconds|10 Seconds|20 Seconds|30 Seconds|40 Seconds|50 Seconds")
-    _GUICtrlComboBox_SetCurSel($secCombo, 3)
-    GUICtrlCreateGroup("", -99, -99, 1, 1)
-    $hotkeyGrp = GUICtrlCreateGroup("SessionGuard Toggle HotKey", 8, 96, 371, 57)
-    $ctrlCbox = GUICtrlCreateCheckbox("Ctrl", 16, 120, 57, 17)
-    $shiftCbox = GUICtrlCreateCheckbox("Shift", 144, 120, 57, 17)
-    $winCbox = GUICtrlCreateCheckbox("Win", 208, 120, 57, 17)
-    $altCbox = GUICtrlCreateCheckbox("Alt", 80, 120, 57, 17)
-    $keyDown = GUICtrlCreateCombo("", 272, 118, 97, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
-    GUICtrlSetData(-1, "`|1|2|3|4|5|6|7|8|9|0|-|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|"&Chr(39)&"|,|.|/")
-    GUICtrlCreateGroup("", -99, -99, 1, 1)
-    $saveBtn = GUICtrlCreateButton("Save", 8, 160, 179, 33)
-    $cancelBtn = GUICtrlCreateButton("Cancel", 192, 160, 187, 33)
-    ;setup esc to hide gui
-    ;~ $escDummy = GUICtrlCreateDummy()
-    ;~ Local $aAccelKeys[1][2] = [["{ESCAPE}", $escDummy]]
-    ;~ GUISetAccelerators($aAccelKeys)
-    _iniToGui($ini) ;set gui from ini file
-    GUISetState(@SW_SHOW, $gui)
-    WinActivate($gui)
+    If $winVis == False Then
+        $gui = GUICreate($title&" Settings", 410, 234, -1, -1, $WS_SYSMENU)
+        GUISetFont(9, 400, 0, "MS Sans Serif")
+        $optionsGrp = GUICtrlCreateGroup("Options", 8, 8, 387, 81)
+        $startupCbox = GUICtrlCreateCheckbox("Start with Windows", 16, 56, 273, 17)
+        $emuCbox = GUICtrlCreateCheckbox("Emulate Mouse Move Every", 16, 32, 193, 17)
+        GUICtrlSetState(-1, $GUI_CHECKED)
+        $secCombo = GUICtrlCreateCombo("", 216, 28, 153, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
+        GUICtrlSetData(-1, "5 Seconds|10 Seconds|20 Seconds|30 Seconds|40 Seconds|50 Seconds")
+        GUICtrlCreateGroup("", -99, -99, 1, 1)
+        $hotkeyGrp = GUICtrlCreateGroup("SessionGuard Toggle HotKey", 8, 96, 387, 57)
+        $ctrlCbox = GUICtrlCreateCheckbox("Ctrl", 16, 120, 57, 17)
+        $shiftCbox = GUICtrlCreateCheckbox("Shift", 144, 120, 57, 17)
+        $winCbox = GUICtrlCreateCheckbox("Win", 208, 120, 57, 17)
+        $altCbox = GUICtrlCreateCheckbox("Alt", 80, 120, 57, 17)
+        $keyDown = GUICtrlCreateCombo("", 272, 118, 113, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
+        GUICtrlSetData(-1, "F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|'|,|.|/|Space|Backspace|Up|Down|Left|Right|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
+        GUICtrlCreateGroup("", -99, -99, 1, 1)
+        $saveBtn = GUICtrlCreateButton("Save", 8, 160, 187, 33)
+        $cancelBtn = GUICtrlCreateButton("Cancel", 200, 160, 195, 33)
+        ;edit ui
+        GUISetIcon(@ScriptFullPath, 201)
+        _GUICtrlComboBox_SetCurSel($secCombo, 3)
+        ;setup esc to hide gui
+        ;~ $escDummy = GUICtrlCreateDummy()
+        ;~ Local $aAccelKeys[1][2] = [["{ESCAPE}", $escDummy]]
+        ;~ GUISetAccelerators($aAccelKeys)
+        _iniToGui($ini) ;set gui from ini file
+        GUISetState(@SW_SHOW, $gui)
+        WinActivate($gui)
+        $winVis = True
+    Else
+        WinActivate($gui)
+    EndIf
 EndFunc
 
 Func _guard()
@@ -247,7 +257,8 @@ EndFunc
 Func _iniToGui($iniFile) ;just reads ini and sets the gui
     ;read main hotkey
     Local $appHotkey = IniRead($iniFile, 'Options', 'Main', '')
-    Local $k = StringRight($appHotkey, 1)
+    Local $k = StringUpper(StringReplace(StringReplace(StringReplace(StringReplace($appHotkey,'^',''),'!',''),'+',''),'#',''))
+    $k = _decodeKey($k)
     If StringInStr($appHotkey,'^') Then
         GUICtrlSetState($ctrlCbox, $GUI_CHECKED)
     Else
@@ -293,7 +304,7 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
     If BitAND(GUICtrlRead($altCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '!'
     If BitAND(GUICtrlRead($shiftCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '+'
     If BitAND(GUICtrlRead($winCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '#'
-    $appHotkey &= StringLower(GUICtrlRead($keyDown))
+    $appHotkey &= _encodeKey(GUICtrlRead($keyDown))
     IniWrite($iniFile, 'Options', 'Main', $appHotkey) ;write the new hotkey
     HotKeySet($oldHotkey) ;unset old hotkey
     HotKeySet($appHotkey, '_guard') ;set new hotkey
@@ -306,16 +317,6 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         IniWrite($iniFile, 'Options', 'Emulate Mouse Move', '0')
     EndIf
     IniWrite($iniFile, 'Options', 'Move Mouse Every', StringTrimRight(GUICtrlRead($secCombo),8))
-EndFunc
-
-Func _decodeHotkey($hotkey)
-    Local $decode = ''
-    If StringInStr($hotkey,'^') Then $decode &= 'Ctrl + '
-    If StringInStr($hotkey,'!') Then $decode &= 'Alt + '
-    If StringInStr($hotkey,'+') Then $decode &= 'Shift + '
-    If StringInStr($hotkey,'#') Then $decode &= 'Win + '
-    $decode &= StringUpper(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'^',''),'!',''),'+',''),'#','')) ;get the last key
-    Return($decode)
 EndFunc
 
 Func _centerWindow($win)
@@ -338,4 +339,69 @@ Func _PowerResetState()
     If @error Then Return SetError(2,@error,0x80000000)
     ;~ ConsoleWrite($aRet[0]&@LF)
     Return $aRet[0] ;previous state
+EndFunc
+
+Func _decodeHotkey($hotkey)
+    Local $decode = ''
+    If StringInStr($hotkey,'^') Then $decode &= 'Ctrl + '
+    If StringInStr($hotkey,'!') Then $decode &= 'Alt + '
+    If StringInStr($hotkey,'+') Then $decode &= 'Shift + '
+    If StringInStr($hotkey,'#') Then $decode &= 'Win + '
+    $decode &= _decodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'^',''),'!',''),'+',''),'#','')) ;get the last key
+    Return($decode)
+EndFunc
+
+Func _encodeKey($k)
+    If StringLen($k) > 1 Then
+        ;Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9||Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add
+        If $k == 'Page Up' Then $k = 'PGUP'
+        If $k == 'Page Down' Then $k = 'PGDN'
+        If $k == 'Numpad 1' Then $k = 'NUMPAD1'
+        If $k == 'Numpad 2' Then $k = 'NUMPAD2'
+        If $k == 'Numpad 3' Then $k = 'NUMPAD3'
+        If $k == 'Numpad 4' Then $k = 'NUMPAD4'
+        If $k == 'Numpad 5' Then $k = 'NUMPAD5'
+        If $k == 'Numpad 6' Then $k = 'NUMPAD6'
+        If $k == 'Numpad 7' Then $k = 'NUMPAD7'
+        If $k == 'Numpad 8' Then $k = 'NUMPAD8'
+        If $k == 'Numpad 9' Then $k = 'NUMPAD9'
+        If $k == 'Numpad 0' Then $k = 'NUMPAD0'
+        If $k == 'Numpad Divide' Then $k = 'NUMPADDIV'
+        If $k == 'Numpad Multiply' Then $k = 'NUMPADMULT'
+        If $k == 'Numpad Subtract' Then $k = 'NUMPADSUB'
+        If $k == 'Numpad Add' Then $k = 'NUMPADADD'
+        $k = '{'&StringUpper($k)&'}'
+    Else
+        $k = StringLower($k)
+    EndIf
+    ;~ ConsoleWrite('encode: '&$k&@LF)
+    Return $k
+EndFunc
+
+Func _decodeKey($k)
+    If StringLen($k) > 1 Then
+        ;Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9||Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add
+        If $k == '{PGUP}' Then $k = 'Page Up'
+        If $k == '{PGDN}' Then $k = 'Page Down'
+        If $k == '{NUMPAD1}' Then $k = 'Numpad 1'
+        If $k == '{NUMPAD2}' Then $k = 'Numpad 2'
+        If $k == '{NUMPAD3}' Then $k = 'Numpad 3'
+        If $k == '{NUMPAD4}' Then $k = 'Numpad 4'
+        If $k == '{NUMPAD5}' Then $k = 'Numpad 5'
+        If $k == '{NUMPAD6}' Then $k = 'Numpad 6'
+        If $k == '{NUMPAD7}' Then $k = 'Numpad 7'
+        If $k == '{NUMPAD8}' Then $k = 'Numpad 8'
+        If $k == '{NUMPAD9}' Then $k = 'Numpad 9'
+        If $k == '{NUMPAD0}' Then $k = 'Numpad 0'
+        If $k == '{NUMPADDIV}' Then $k = 'Numpad Divide'
+        If $k == '{NUMPADMULT}' Then $k = 'Numpad Multiply'
+        If $k == '{NUMPADSUB}' Then $k = 'Numpad Subtract'
+        If $k == '{NUMPADADD}' Then $k = 'Numpad Add'
+        $k = _StringTitleCase($k)
+    Else
+        $k = StringUpper($k)
+    EndIf
+    $k = StringReplace(StringReplace($k, '{', ''), '}', '')
+    ;~ ConsoleWrite('decode: '&$k&@LF)
+    Return $k
 EndFunc
