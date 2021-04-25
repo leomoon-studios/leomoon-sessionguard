@@ -145,7 +145,7 @@ While 1
         Case $settingsTray
             _gui()
 		Case $leomoonSiteTray
-			ShellExecute('http://leomoon.com')
+			ShellExecute('http://leomoon.com', '', '', '', @SW_HIDE)
     EndSwitch
 WEnd
 
