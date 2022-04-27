@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon Watchdog)
 #pragma compile(FileDescription, LeoMoon Watchdog)
-#pragma compile(FileVersion, 1.3.3.0)
+#pragma compile(FileVersion, 1.3.4.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.3.3.0)
+#pragma compile(ProductVersion, 1.3.4.0)
 
 #include <GUIConstantsEx.au3>
 #include <WinAPISys.au3>
@@ -32,7 +32,7 @@
 #include <resources\ExtMsgBox.au3>
 
 Global $title = 'LeoMoon Watchdog'
-Global $ver = '1.3.3'
+Global $ver = '1.3.4'
 
 _ExtMsgBoxSet(0, $SS_LEFT, -1, -1, 9, "Tahoma")
 

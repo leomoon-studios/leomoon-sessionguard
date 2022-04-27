@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="windows-1251"?>
 <object type="TAForm" name="gui_1">
 	<properties>
-		<property name="Left" vt="Int16">187</property>
-		<property name="Top" vt="Int16">328</property>
+		<property name="Left" vt="Int16">449</property>
+		<property name="Top" vt="Int16">626</property>
 		<property name="Width" vt="Int16">425</property>
-		<property name="Height" vt="Int16">272</property>
+		<property name="Height" vt="Int16">288</property>
 		<property name="Caption" vt="String"> Settings</property>
 		<property name="Color" vt="Ident">clBtnFace</property>
 		<property name="Font.Charset" vt="Ident">DEFAULT_CHARSET</property>
@@ -1024,7 +1024,7 @@
 		<object type="TAGroup" name="hotkeyGrp">
 			<properties>
 				<property name="Left" vt="Int8">8</property>
-				<property name="Top" vt="Int8">96</property>
+				<property name="Top" vt="Int8">112</property>
 				<property name="Width" vt="Int16">387</property>
 				<property name="Height" vt="Int8">57</property>
 				<property name="CtrlStyle" vt="Int32">1342308359</property>
@@ -1114,7 +1114,7 @@
 		<object type="TAButton" name="saveBtn">
 			<properties>
 				<property name="Left" vt="Int8">8</property>
-				<property name="Top" vt="Int16">160</property>
+				<property name="Top" vt="Int16">176</property>
 				<property name="Width" vt="Int16">187</property>
 				<property name="Height" vt="Int8">33</property>
 				<property name="Caption" vt="String">Save</property>
@@ -1129,7 +1129,7 @@
 		<object type="TAButton" name="cancelBtn">
 			<properties>
 				<property name="Left" vt="Int16">200</property>
-				<property name="Top" vt="Int16">160</property>
+				<property name="Top" vt="Int16">176</property>
 				<property name="Width" vt="Int16">195</property>
 				<property name="Height" vt="Int8">33</property>
 				<property name="Caption" vt="String">Cancel</property>
@@ -1146,7 +1146,7 @@
 				<property name="Left" vt="Int8">8</property>
 				<property name="Top" vt="Int8">8</property>
 				<property name="Width" vt="Int16">387</property>
-				<property name="Height" vt="Int8">81</property>
+				<property name="Height" vt="Int8">97</property>
 				<property name="CtrlStyle" vt="Int32">1342308359</property>
 				<property name="CtrlExStyle" vt="Int8">0</property>
 				<property name="Caption" vt="String">Options</property>
@@ -1157,8 +1157,8 @@
 				<object type="TACheckbox" name="startupCbox">
 					<properties>
 						<property name="Left" vt="Int8">8</property>
-						<property name="Top" vt="Int8">48</property>
-						<property name="Width" vt="Int16">273</property>
+						<property name="Top" vt="Int8">72</property>
+						<property name="Width" vt="Int16">353</property>
 						<property name="Height" vt="Int8">17</property>
 						<property name="Caption" vt="String">Start with Windows</property>
 						<property name="TabOrder" vt="Int8">0</property>
@@ -1203,6 +1203,20 @@
 							</list>
 						</property>
 						<property name="CtrlStyle" vt="Int32">1344471619</property>
+						<property name="CtrlExStyle" vt="Int8">0</property>
+						<property name="Resizing" vt="Set">DockHeight</property>
+					</properties>
+					<components/>
+				</object>
+				<object type="TACheckbox" name="nosleepCbox">
+					<properties>
+						<property name="Left" vt="Int8">8</property>
+						<property name="Top" vt="Int8">48</property>
+						<property name="Width" vt="Int16">353</property>
+						<property name="Height" vt="Int8">17</property>
+						<property name="Caption" vt="String">Prevent Sleeping</property>
+						<property name="TabOrder" vt="Int8">3</property>
+						<property name="CtrlStyle" vt="Int32">1342242819</property>
 						<property name="CtrlExStyle" vt="Int8">0</property>
 						<property name="Resizing" vt="Set">DockHeight</property>
 					</properties>

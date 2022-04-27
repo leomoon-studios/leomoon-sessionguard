@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon SessionGuard)
 #pragma compile(FileDescription, LeoMoon SessionGuard)
-#pragma compile(FileVersion, 1.3.3.0)
+#pragma compile(FileVersion, 1.3.4.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.3.3.0)
+#pragma compile(ProductVersion, 1.3.4.0)
 
 #include <String.au3>
 #include <Timers.au3>
@@ -43,14 +43,15 @@ OnAutoItExitRegister("_PowerResetState")
 
 ;global vars
 Global $title = 'LeoMoon SessionGuard'
-Global $ver = '1.3.3'
+Global $ver = '1.3.4'
 Global $enabled = True
+Global $noSleep = True
 Global $emu = True
 Global $winViz = False
 Global $emuVal = 30
 Global $ini = @ScriptDir&'\'&$title&'.ini'
 ;global gui vars
-Global $gui, $emuCbox, $secCombo, $saveBtn, $startupCbox, $cancelBtn, $escDummy, $ctrlCbox, $altCbox, $shiftCbox, $winCbox, $keyDown
+Global $power, $gui, $emuCbox, $secCombo, $saveBtn, $nosleepCbox, $startupCbox, $cancelBtn, $escDummy, $ctrlCbox, $altCbox, $shiftCbox, $winCbox, $keyDown
 
 _ExtMsgBoxSet(0, $SS_RIGHT, -1, -1, 9, "Tahoma")
 
@@ -60,8 +61,8 @@ If Number(_WinAPI_GetVersion()) < 6.0 Then
 EndIf
 
 If _Singleton($title, 1) = 0 Then
-	_ExtMsgBox(48, 'OK', 'Oops!', $title&' is currently running.'&@CRLF, 0)
-	Exit
+    _ExtMsgBox(48, 'OK', 'Oops!', $title&' is currently running.'&@CRLF, 0)
+    Exit
 EndIf
 
 _iniCheck($ini)
@@ -101,7 +102,12 @@ _readHotkey($ini, 'Options', 'Main', $enableTray, 'Guard My Session!', '_guard',
 _iniToApply($ini)
 TraySetState()
 ;initiate watchdog
-_PowerKeepAlive()
+;~ _PowerKeepAlive()
+if $noSleep Then
+    Global $power = _PowerKeepAlive()
+Else
+    _PowerResetState()
+EndIf
 $pid = Run('lmwatchdog.exe --mohafez', @ScriptDir, @SW_HIDE)
 TraySetToolTip($title&" is enabled.")
 
@@ -109,7 +115,7 @@ While 1
     If $enabled And $emu And StringIsDigit($emuVal) And _Timer_GetIdleTime()/1000 > $emuVal Then
         Local $aPos = MouseGetPos()
         MouseMove($aPos[0],$aPos[1],0)
-        ;~ ConsoleWrite('moving the mouse to '&$aPos[0]&', '&$aPos[1]&', wait: '&$emuVal&@LF)
+        ;~ ConsoleWrite('moving mouse to '&$aPos[0]&', '&$aPos[1]&', wait: '&$emuVal&@LF)
     EndIf
     $nMsg = GUIGetMsg()
     Switch $nMsg
@@ -130,6 +136,8 @@ While 1
             Else
                 RegDelete("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", $title)
             EndIf
+            _guard()
+            _noSleep()
             GUIDelete($gui)
             $winVis = False
     EndSwitch
@@ -137,15 +145,17 @@ While 1
     Switch $tMsg
         Case $exitTray
             ProcessClose($pid)
-			Exit
+            Exit
         Case $TRAY_EVENT_PRIMARYDOUBLE
             _guard()
+            _noSleep()
         Case $enableTray
             _guard()
+            _noSleep()
         Case $settingsTray
             _gui()
-		Case $leomoonSiteTray
-			ShellExecute('http://leomoon.com', '', '', '', @SW_HIDE)
+        Case $leomoonSiteTray
+            ShellExecute('http://leomoon.com', '', '', '', @SW_HIDE)
     EndSwitch
 WEnd
 
@@ -158,25 +168,26 @@ Func _gui()
     ;~ $gui = GUICreate("Hotkey Settings", 386, 242, -1, -1) ;close and minimize
     ;~ $gui = GUICreate("Hotkey Settings", 386, 242, -1, -1, BitOR($WS_SYSMENU,$WS_POPUP)) ;frame only
     If $winVis == False Then
-        $gui = GUICreate($title&" Settings", 410, 234, -1, -1, $WS_SYSMENU)
+        $gui = GUICreate($title&" Settings", 410, 250, -1, -1, $WS_SYSMENU)
         GUISetFont(9, 400, 0, "MS Sans Serif")
-        $optionsGrp = GUICtrlCreateGroup("Options", 8, 8, 387, 81)
-        $startupCbox = GUICtrlCreateCheckbox("Start with Windows", 16, 56, 273, 17)
+        $optionsGrp = GUICtrlCreateGroup("Options", 8, 8, 387, 97)
         $emuCbox = GUICtrlCreateCheckbox("Emulate Mouse Move Every", 16, 32, 193, 17)
-        GUICtrlSetState(-1, $GUI_CHECKED)
+        ;~ GUICtrlSetState(-1, $GUI_CHECKED)
         $secCombo = GUICtrlCreateCombo("", 216, 28, 153, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
         GUICtrlSetData(-1, "5 Seconds|10 Seconds|20 Seconds|30 Seconds|40 Seconds|50 Seconds")
+        $nosleepCbox = GUICtrlCreateCheckbox("Prevent Sleeping", 16, 56, 353, 17)
+        $startupCbox = GUICtrlCreateCheckbox("Start with Windows", 16, 80, 353, 17)
         GUICtrlCreateGroup("", -99, -99, 1, 1)
-        $hotkeyGrp = GUICtrlCreateGroup("SessionGuard Toggle HotKey", 8, 96, 387, 57)
-        $ctrlCbox = GUICtrlCreateCheckbox("Ctrl", 16, 120, 57, 17)
-        $shiftCbox = GUICtrlCreateCheckbox("Shift", 144, 120, 57, 17)
-        $winCbox = GUICtrlCreateCheckbox("Win", 208, 120, 57, 17)
-        $altCbox = GUICtrlCreateCheckbox("Alt", 80, 120, 57, 17)
-        $keyDown = GUICtrlCreateCombo("", 272, 118, 113, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
+        $hotkeyGrp = GUICtrlCreateGroup("SessionGuard Toggle HotKey", 8, 112, 387, 57)
+        $ctrlCbox = GUICtrlCreateCheckbox("Ctrl", 16, 136, 57, 17)
+        $shiftCbox = GUICtrlCreateCheckbox("Shift", 144, 136, 57, 17)
+        $winCbox = GUICtrlCreateCheckbox("Win", 208, 136, 57, 17)
+        $altCbox = GUICtrlCreateCheckbox("Alt", 80, 136, 57, 17)
+        $keyDown = GUICtrlCreateCombo("", 272, 134, 113, 25, BitOR($GUI_SS_DEFAULT_COMBO,$CBS_SIMPLE))
         GUICtrlSetData(-1, "F1|F2|F3|F4|F5|F6|F7|F8|F9|F10|F11|F12|`|1|2|3|4|5|6|7|8|9|0|-|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|[|]|\|;|'|,|.|/|Space|Backspace|Up|Down|Left|Right|Insert|Delete|Home|End|Page Up|Page Down|Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9|Numpad 0|Numpad Dot|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add")
         GUICtrlCreateGroup("", -99, -99, 1, 1)
-        $saveBtn = GUICtrlCreateButton("Save", 8, 160, 187, 33)
-        $cancelBtn = GUICtrlCreateButton("Cancel", 200, 160, 195, 33)
+        $saveBtn = GUICtrlCreateButton("Save", 8, 176, 187, 33)
+        $cancelBtn = GUICtrlCreateButton("Cancel", 200, 176, 195, 33)
         ;edit ui
         GUISetIcon(@ScriptFullPath, 201)
         _GUICtrlComboBox_SetCurSel($secCombo, 3)
@@ -195,31 +206,40 @@ EndFunc
 
 Func _guard()
     If Not $enabled Then ;enable it
-        _PowerKeepAlive()
         $pid = Run('lmwatchdog.exe --mohafez', @ScriptDir, @SW_HIDE)
         TraySetToolTip($title&" is enabled.")
         TraySetIcon(@ScriptFullPath, 201)
         TrayItemSetState($enableTray,$TRAY_CHECKED)
         $enabled = True
     Else
-        _PowerResetState()
         ProcessClose($pid)
-		TraySetToolTip($title&" is disabled.")
+        TraySetToolTip($title&" is disabled.")
         TraySetIcon(@ScriptFullPath, 202)
         TrayItemSetState($enableTray,$TRAY_UNCHECKED)
         $enabled = False
-	EndIf
+    EndIf
+EndFunc
+
+Func _noSleep()
+    if $enabled And $noSleep Then
+        $power = _PowerKeepAlive()
+    Else
+        _PowerResetState()
+    EndIf
+    ;~ ConsoleWrite($noSleep&@LF)
 EndFunc
 
 Func _iniCheck($iniFile)
     If Not FileExists($iniFile) Or _
     IniRead($iniFile, 'Options', 'Main', '') == '' Or _
     IniRead($iniFile, 'Options', 'Emulate Mouse Move', '') == '' Or _
-    IniRead($iniFile, 'Options', 'Move Mouse Every', '') == '' Then
+    IniRead($iniFile, 'Options', 'Move Mouse Every', '') == '' Or _
+    IniRead($iniFile, 'Options', 'Prevent Sleeping', '') == '' Then
         FileDelete($iniFile)
         IniWrite($iniFile, 'Options', 'Main', '^#.')
         IniWrite($iniFile, 'Options', 'Emulate Mouse Move', '1')
         IniWrite($iniFile, 'Options', 'Move Mouse Every', '30')
+        IniWrite($iniFile, 'Options', 'Prevent Sleeping', '1')
     EndIf
     ;double check
     If Not FileExists($iniFile) Then
@@ -250,6 +270,11 @@ Func _iniToApply($iniFile)
         $emu = True
     Else
         $emu = False
+    EndIf
+    If IniRead($iniFile, 'Options', 'Prevent Sleeping', '') == 1 Then
+        $noSleep = True
+    Else
+        $noSleep = False
     EndIf
     $emuVal = IniRead($iniFile, 'Options', 'Move Mouse Every', '')
 EndFunc
@@ -294,6 +319,11 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
     Else
         GUICtrlSetState($startupCbox, $GUI_CHECKED)
     EndIf
+    If IniRead($iniFile, 'Options', 'Prevent Sleeping', '') == 1 Then
+        GUICtrlSetState($nosleepCbox, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($nosleepCbox, $GUI_UNCHECKED)
+    EndIf
 EndFunc
 
 Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
@@ -317,6 +347,11 @@ Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
         IniWrite($iniFile, 'Options', 'Emulate Mouse Move', '0')
     EndIf
     IniWrite($iniFile, 'Options', 'Move Mouse Every', StringTrimRight(GUICtrlRead($secCombo),8))
+    If BitAND(GUICtrlRead($nosleepCbox), $GUI_CHECKED) == 1 Then
+        IniWrite($iniFile, 'Options', 'Prevent Sleeping', '1')
+    Else
+        IniWrite($iniFile, 'Options', 'Prevent Sleeping', '0')
+    EndIf
 EndFunc
 
 Func _centerWindow($win)
@@ -329,15 +364,15 @@ EndFunc
 Func _PowerKeepAlive()
     Local $aRet=DllCall('kernel32.dll','long','SetThreadExecutionState','long',0x80000003)
     If @error Then Return SetError(2,@error,0x80000000)
-    ;~ ConsoleWrite($aRet[0]&@LF)
+    ;~ ConsoleWrite('noSleep enabled - '&$aRet[0]&@LF)
     Return $aRet[0] ;previous state (typically 0x80000000 [-2147483648])
 EndFunc
 
 Func _PowerResetState()
     ;flag: ES_CONTINUOUS (0x80000000) -> (default) -> used alone, it resets timers & allows regular sleep/power-savings mode
-    Local $aRet=DllCall('kernel32.dll','long','SetThreadExecutionState','long',0x80000000)
+    Local $aRet=DllCall('kernel32.dll','long','SetThreadExecutionState','long',$power)
     If @error Then Return SetError(2,@error,0x80000000)
-    ;~ ConsoleWrite($aRet[0]&@LF)
+    ;~ ConsoleWrite('noSleep reset - '&$aRet[0]&@LF)
     Return $aRet[0] ;previous state
 EndFunc
 
