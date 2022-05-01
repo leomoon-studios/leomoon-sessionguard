@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon SessionGuard)
 #pragma compile(FileDescription, LeoMoon SessionGuard)
-#pragma compile(FileVersion, 1.3.4.0)
+#pragma compile(FileVersion, 1.3.5.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.3.4.0)
+#pragma compile(ProductVersion, 1.3.5.0)
 
 #include <String.au3>
 #include <Timers.au3>
@@ -43,7 +43,7 @@ OnAutoItExitRegister("_PowerResetState")
 
 ;global vars
 Global $title = 'LeoMoon SessionGuard'
-Global $ver = '1.3.4'
+Global $ver = '1.3.5'
 Global $enabled = True
 Global $noSleep = True
 Global $emu = True
@@ -136,7 +136,7 @@ While 1
             Else
                 RegDelete("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", $title)
             EndIf
-            _guard()
+            ;~ _guard()
             _noSleep()
             GUIDelete($gui)
             $winVis = False
@@ -148,10 +148,8 @@ While 1
             Exit
         Case $TRAY_EVENT_PRIMARYDOUBLE
             _guard()
-            _noSleep()
         Case $enableTray
             _guard()
-            _noSleep()
         Case $settingsTray
             _gui()
         Case $leomoonSiteTray
@@ -211,12 +209,16 @@ Func _guard()
         TraySetIcon(@ScriptFullPath, 201)
         TrayItemSetState($enableTray,$TRAY_CHECKED)
         $enabled = True
+        _noSleep()
+        ;~ ConsoleWrite('sessionguard enabled'&@LF)
     Else
         ProcessClose($pid)
         TraySetToolTip($title&" is disabled.")
         TraySetIcon(@ScriptFullPath, 202)
         TrayItemSetState($enableTray,$TRAY_UNCHECKED)
         $enabled = False
+        _noSleep()
+        ;~ ConsoleWrite('sessionguard disabled'&@LF)
     EndIf
 EndFunc
 
