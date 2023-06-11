@@ -17,11 +17,11 @@
 #pragma compile(Comments, This program is freeware.)
 #pragma compile(ProductName, LeoMoon SessionGuard)
 #pragma compile(FileDescription, LeoMoon SessionGuard)
-#pragma compile(FileVersion, 1.3.5.0)
+#pragma compile(FileVersion, 1.3.6.0)
 #pragma compile(LegalCopyright, Amin Babaeipanah)
 #pragma compile(CompanyName, LeoMoon Studios Inc.)
 #pragma compile(LegalTrademarks, LeoMoon Studios Inc.)
-#pragma compile(ProductVersion, 1.3.5.0)
+#pragma compile(ProductVersion, 1.3.6.0)
 
 #include <String.au3>
 #include <Timers.au3>
@@ -43,7 +43,7 @@ OnAutoItExitRegister("_PowerResetState")
 
 ;global vars
 Global $title = 'LeoMoon SessionGuard'
-Global $ver = '1.3.5'
+Global $ver = '1.3.6'
 Global $enabled = True
 Global $noSleep = True
 Global $emu = True
