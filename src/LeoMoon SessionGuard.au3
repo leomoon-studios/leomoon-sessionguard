@@ -39,6 +39,8 @@
 #include <WindowsConstants.au3>
 #include <GuiComboBox.au3>
 #include "watchdog/Watchdog.au3"
+#include "core/HotkeyCodec.au3"
+#include "core/Settings.au3"
 
 ; The helper must branch before either the main singleton or tray is created.
 If $CmdLine[0] = 1 And $CmdLine[1] = '--watchdog' Then
@@ -57,6 +59,7 @@ Global $emu = True
 Global $winViz = False
 Global $emuVal = 30
 Global $ini = @ScriptDir&'\'&$title&'.ini'
+Global $activeHotkey = ''
 ;global gui vars
 Global $power, $gui, $emuCbox, $secCombo, $saveBtn, $nosleepCbox, $startupCbox, $cancelBtn, $escDummy, $ctrlCbox, $altCbox, $shiftCbox, $winCbox, $keyDown
 
@@ -72,7 +75,10 @@ If _Singleton($title, 1) = 0 Then
     Exit
 EndIf
 
-_iniCheck($ini)
+If Not _SettingsEnsure($ini) Then
+    _ExtMsgBox(48, 'OK', 'Settings error', 'Unable to safely write settings in:' & @CRLF & @ScriptDir & @CRLF, 0)
+    Exit
+EndIf
 
 Opt('TrayMenuMode',3)
 Opt('TrayAutoPause',0)
@@ -103,7 +109,7 @@ TrayCreateItem('')
 $leomoonSiteTray = TrayCreateItem("Visit LeoMoon Studios website")
 TrayCreateItem('')
 $exitTray = TrayCreateItem('Exit')
-_readHotkey($ini, 'Options', 'Main', $enableTray, 'Guard My Session!', '_guard', '^#.') ;apply main hotkey
+_readHotkey($ini)
 _iniToApply($ini)
 TraySetState(1)
 ;initiate watchdog
@@ -134,7 +140,7 @@ While 1
                 GUICtrlSetState($secCombo, $GUI_DISABLE)
             EndIf
         Case $saveBtn
-            _guiToIni($ini)
+            If Not _guiToIni($ini) Then ContinueLoop
             _iniToApply($ini)
             If BitAND(GUICtrlRead($startupCbox), $GUI_CHECKED) == 1 Then
                 RegWrite("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", $title, "REG_SZ", '"'&@ScriptFullPath&'"')
@@ -242,59 +248,33 @@ Func _noSleep()
     ;~ ConsoleWrite($noSleep&@LF)
 EndFunc
 
-Func _iniCheck($iniFile)
-    If Not FileExists($iniFile) Or _
-    IniRead($iniFile, 'Options', 'Main', '') == '' Or _
-    IniRead($iniFile, 'Options', 'Emulate Mouse Move', '') == '' Or _
-    IniRead($iniFile, 'Options', 'Move Mouse Every', '') == '' Or _
-    IniRead($iniFile, 'Options', 'Prevent Sleeping', '') == '' Then
-        FileDelete($iniFile)
-        IniWrite($iniFile, 'Options', 'Main', '^#.')
-        IniWrite($iniFile, 'Options', 'Emulate Mouse Move', '1')
-        IniWrite($iniFile, 'Options', 'Move Mouse Every', '30')
-        IniWrite($iniFile, 'Options', 'Prevent Sleeping', '1')
-    EndIf
-    ;double check
-    If Not FileExists($iniFile) Then
-        _ExtMsgBox(48, 'OK', 'Oops!', $title&' was unable to write settings file at this location:'&@CRLF&'"'&@ScriptDir&'"'&@CRLF, 0)
-        Exit
-    EndIf
-EndFunc
-
-Func _readHotkey($iniFile, $section, $key, $trayItem, $text, $function, $default)
-    ;inifile to read
-    ;section of the ini
-    ;key of the ini
-    ;trayitem id to append the new hotkey
-    ;trayitem text to append the new hotkey
-    ;function to set hotkey
-    $appHotkey = IniRead($iniFile, $section, $key, '')
-    If $appHotkey == '' Then ;default hotkey if key not found in ini file
-        IniWrite($iniFile, $section, $key, $default)
-        TrayItemSetText($trayItem, $text&@TAB&_decodeHotkey($default))
+Func _readHotkey($iniFile)
+    Local $hotkey = IniRead($iniFile, $SETTINGS_SECTION, $SETTING_HOTKEY, $DEFAULT_HOTKEY)
+    If HotKeySet($hotkey, '_guard') Then
+        $activeHotkey = $hotkey
+        TrayItemSetText($enableTray, 'Guard My Session!' & @TAB & _decodeHotkey($hotkey))
     Else
-        HotKeySet($appHotkey, $function)
-        TrayItemSetText($trayItem, $text&@TAB&_decodeHotkey($appHotkey))
+        _ExtMsgBox(48, 'OK', 'Hotkey unavailable', 'The saved shortcut could not be registered. Choose another shortcut in Settings.', 0)
     EndIf
 EndFunc
 
 Func _iniToApply($iniFile)
-    If IniRead($iniFile, 'Options', 'Emulate Mouse Move', '') == 1 Then
+    If IniRead($iniFile, $SETTINGS_SECTION, $SETTING_MOUSE, '') == 1 Then
         $emu = True
     Else
         $emu = False
     EndIf
-    If IniRead($iniFile, 'Options', 'Prevent Sleeping', '') == 1 Then
+    If IniRead($iniFile, $SETTINGS_SECTION, $SETTING_SLEEP, '') == 1 Then
         $noSleep = True
     Else
         $noSleep = False
     EndIf
-    $emuVal = IniRead($iniFile, 'Options', 'Move Mouse Every', '')
+    $emuVal = IniRead($iniFile, $SETTINGS_SECTION, $SETTING_INTERVAL, '')
 EndFunc
 
 Func _iniToGui($iniFile) ;just reads ini and sets the gui
     ;read main hotkey
-    Local $appHotkey = IniRead($iniFile, 'Options', 'Main', '')
+    Local $appHotkey = IniRead($iniFile, $SETTINGS_SECTION, $SETTING_HOTKEY, '')
     Local $k = StringUpper(StringReplace(StringReplace(StringReplace(StringReplace($appHotkey,'^',''),'!',''),'+',''),'#',''))
     $k = _decodeKey($k)
     If StringInStr($appHotkey,'^') Then
@@ -319,20 +299,20 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
     EndIf
     _GUICtrlComboBox_SelectString($keyDown, StringUpper($k))
     ;rest of settings
-    If IniRead($iniFile, 'Options', 'Emulate Mouse Move', '') == 1 Then
+    If IniRead($iniFile, $SETTINGS_SECTION, $SETTING_MOUSE, '') == 1 Then
         GUICtrlSetState($emuCbox, $GUI_CHECKED)
         GUICtrlSetState($secCombo, $GUI_ENABLE)
     Else
         GUICtrlSetState($emuCbox, $GUI_UNCHECKED)
         GUICtrlSetState($secCombo, $GUI_DISABLE)
     EndIf
-    _GUICtrlComboBox_SelectString($secCombo, IniRead($iniFile, 'Options', 'Move Mouse Every', '')&' Seconds')
+    _GUICtrlComboBox_SelectString($secCombo, IniRead($iniFile, $SETTINGS_SECTION, $SETTING_INTERVAL, '')&' Seconds')
     If RegRead("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", $title) == '' Then
         GUICtrlSetState($startupCbox, $GUI_UNCHECKED)
     Else
         GUICtrlSetState($startupCbox, $GUI_CHECKED)
     EndIf
-    If IniRead($iniFile, 'Options', 'Prevent Sleeping', '') == 1 Then
+    If IniRead($iniFile, $SETTINGS_SECTION, $SETTING_SLEEP, '') == 1 Then
         GUICtrlSetState($nosleepCbox, $GUI_CHECKED)
     Else
         GUICtrlSetState($nosleepCbox, $GUI_UNCHECKED)
@@ -340,31 +320,33 @@ Func _iniToGui($iniFile) ;just reads ini and sets the gui
 EndFunc
 
 Func _guiToIni($iniFile) ;reads gui and saves to ini and sets global hotkey only
-    ;main hotkey
-    Local $oldHotkey = IniRead($iniFile, 'Options', 'Main', '') ;get old hotkey
     Local $appHotkey = ''
     If BitAND(GUICtrlRead($ctrlCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '^'
     If BitAND(GUICtrlRead($altCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '!'
     If BitAND(GUICtrlRead($shiftCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '+'
     If BitAND(GUICtrlRead($winCbox), $GUI_CHECKED) == 1 Then $appHotkey &= '#'
     $appHotkey &= _encodeKey(GUICtrlRead($keyDown))
-    IniWrite($iniFile, 'Options', 'Main', $appHotkey) ;write the new hotkey
-    HotKeySet($oldHotkey) ;unset old hotkey
-    HotKeySet($appHotkey, '_guard') ;set new hotkey
-    $txt = _decodeHotkey($appHotkey) ;decode hotkey to text
-    TrayItemSetText($enableTray, 'Guard My Session!'&@TAB&$txt) ;change menu entry to new hotkey
-    ;rest of settings
-    If BitAND(GUICtrlRead($emuCbox), $GUI_CHECKED) == 1 Then
-        IniWrite($iniFile, 'Options', 'Emulate Mouse Move', '1')
-    Else
-        IniWrite($iniFile, 'Options', 'Emulate Mouse Move', '0')
+    Local $interval = StringTrimRight(GUICtrlRead($secCombo), 8)
+    Local $mouse = Number(BitAND(GUICtrlRead($emuCbox), $GUI_CHECKED) == 1)
+    Local $sleep = Number(BitAND(GUICtrlRead($nosleepCbox), $GUI_CHECKED) == 1)
+    If Not _SettingsValid($SETTING_HOTKEY, $appHotkey) Or Not _SettingsValid($SETTING_INTERVAL, $interval) Then
+        _ExtMsgBox(48, 'OK', 'Invalid settings', 'Choose a valid shortcut and mouse interval.', 0)
+        Return False
     EndIf
-    IniWrite($iniFile, 'Options', 'Move Mouse Every', StringTrimRight(GUICtrlRead($secCombo),8))
-    If BitAND(GUICtrlRead($nosleepCbox), $GUI_CHECKED) == 1 Then
-        IniWrite($iniFile, 'Options', 'Prevent Sleeping', '1')
-    Else
-        IniWrite($iniFile, 'Options', 'Prevent Sleeping', '0')
+    Local $changed = ($appHotkey <> $activeHotkey)
+    If $changed And Not HotKeySet($appHotkey, '_guard') Then
+        _ExtMsgBox(48, 'OK', 'Hotkey unavailable', 'That shortcut could not be registered. The previous shortcut is still active.', 0)
+        Return False
     EndIf
+    If Not _SettingsSave($iniFile, $appHotkey, $mouse, $interval, $sleep) Then
+        If $changed Then HotKeySet($appHotkey)
+        _ExtMsgBox(48, 'OK', 'Settings error', 'Settings could not be saved. The previous settings and shortcut have been kept.', 0)
+        Return False
+    EndIf
+    If $changed And $activeHotkey <> '' Then HotKeySet($activeHotkey)
+    $activeHotkey = $appHotkey
+    TrayItemSetText($enableTray, 'Guard My Session!' & @TAB & _decodeHotkey($activeHotkey))
+    Return True
 EndFunc
 
 Func _centerWindow($win)
@@ -387,71 +369,4 @@ Func _PowerResetState()
     If @error Then Return SetError(2,@error,0x80000000)
     ;~ ConsoleWrite('noSleep reset - '&$aRet[0]&@LF)
     Return $aRet[0] ;previous state
-EndFunc
-
-Func _decodeHotkey($hotkey)
-    Local $decode = ''
-    If StringInStr($hotkey,'^') Then $decode &= 'Ctrl + '
-    If StringInStr($hotkey,'!') Then $decode &= 'Alt + '
-    If StringInStr($hotkey,'+') Then $decode &= 'Shift + '
-    If StringInStr($hotkey,'#') Then $decode &= 'Win + '
-    $decode &= _decodeKey(StringReplace(StringReplace(StringReplace(StringReplace($hotkey,'^',''),'!',''),'+',''),'#','')) ;get the last key
-    Return($decode)
-EndFunc
-
-Func _encodeKey($k)
-    If StringLen($k) > 1 Then
-        ;Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9||Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add
-        If $k == 'Page Up' Then $k = 'PGUP'
-        If $k == 'Page Down' Then $k = 'PGDN'
-        If $k == 'Numpad 1' Then $k = 'NUMPAD1'
-        If $k == 'Numpad 2' Then $k = 'NUMPAD2'
-        If $k == 'Numpad 3' Then $k = 'NUMPAD3'
-        If $k == 'Numpad 4' Then $k = 'NUMPAD4'
-        If $k == 'Numpad 5' Then $k = 'NUMPAD5'
-        If $k == 'Numpad 6' Then $k = 'NUMPAD6'
-        If $k == 'Numpad 7' Then $k = 'NUMPAD7'
-        If $k == 'Numpad 8' Then $k = 'NUMPAD8'
-        If $k == 'Numpad 9' Then $k = 'NUMPAD9'
-        If $k == 'Numpad 0' Then $k = 'NUMPAD0'
-        If $k == 'Numpad Dot' Then $k = 'NUMPADDOT'
-        If $k == 'Numpad Divide' Then $k = 'NUMPADDIV'
-        If $k == 'Numpad Multiply' Then $k = 'NUMPADMULT'
-        If $k == 'Numpad Subtract' Then $k = 'NUMPADSUB'
-        If $k == 'Numpad Add' Then $k = 'NUMPADADD'
-        $k = '{'&StringUpper($k)&'}'
-    Else
-        $k = StringLower($k)
-    EndIf
-    ;~ ConsoleWrite('encode: '&$k&@LF)
-    Return $k
-EndFunc
-
-Func _decodeKey($k)
-    If StringLen($k) > 1 Then
-        ;Numpad 1|Numpad 2|Numpad 3|Numpad 4|Numpad 5|Numpad 6|Numpad 7|Numpad 8|Numpad 9||Numpad 0|Numpad Divide|Numpad Multiply|Numpad Subtract|Numpad Add
-        If $k == '{PGUP}' Then $k = 'Page Up'
-        If $k == '{PGDN}' Then $k = 'Page Down'
-        If $k == '{NUMPAD1}' Then $k = 'Numpad 1'
-        If $k == '{NUMPAD2}' Then $k = 'Numpad 2'
-        If $k == '{NUMPAD3}' Then $k = 'Numpad 3'
-        If $k == '{NUMPAD4}' Then $k = 'Numpad 4'
-        If $k == '{NUMPAD5}' Then $k = 'Numpad 5'
-        If $k == '{NUMPAD6}' Then $k = 'Numpad 6'
-        If $k == '{NUMPAD7}' Then $k = 'Numpad 7'
-        If $k == '{NUMPAD8}' Then $k = 'Numpad 8'
-        If $k == '{NUMPAD9}' Then $k = 'Numpad 9'
-        If $k == '{NUMPAD0}' Then $k = 'Numpad 0'
-        If $k == '{NUMPADDOT}' Then $k = 'Numpad Dot'
-        If $k == '{NUMPADDIV}' Then $k = 'Numpad Divide'
-        If $k == '{NUMPADMULT}' Then $k = 'Numpad Multiply'
-        If $k == '{NUMPADSUB}' Then $k = 'Numpad Subtract'
-        If $k == '{NUMPADADD}' Then $k = 'Numpad Add'
-        $k = _StringTitleCase($k)
-    Else
-        $k = StringUpper($k)
-    EndIf
-    $k = StringReplace(StringReplace($k, '{', ''), '}', '')
-    ;~ ConsoleWrite('decode: '&$k&@LF)
-    Return $k
 EndFunc
