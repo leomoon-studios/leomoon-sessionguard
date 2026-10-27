@@ -1,4 +1,4 @@
-;~ #NoTrayIcon
+#NoTrayIcon
 ;~ #RequireAdmin
 
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
@@ -38,6 +38,13 @@
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <GuiComboBox.au3>
+#include "watchdog/Watchdog.au3"
+
+; The helper must branch before either the main singleton or tray is created.
+If $CmdLine[0] = 1 And $CmdLine[1] = '--watchdog' Then
+    _WatchdogRun()
+    Exit
+EndIf
 
 OnAutoItExitRegister("_PowerResetState")
 
@@ -73,8 +80,6 @@ Opt("GUICloseOnESC", 0)
 
 TraySetClick(8)
 
-ProcessClose('lmwatchdog.exe')
-
 ;~ Global $g_hForm = GUICreate('LMSGForced', 200, 200)
 ;~ Local $idButton = GUICtrlCreateButton('', 73, 62, 54, 54, $BS_ICON)
 ;~ GUIRegisterMsg($WM_QUERYENDSESSION, 'WM_QUERYENDSESSION')
@@ -100,7 +105,7 @@ TrayCreateItem('')
 $exitTray = TrayCreateItem('Exit')
 _readHotkey($ini, 'Options', 'Main', $enableTray, 'Guard My Session!', '_guard', '^#.') ;apply main hotkey
 _iniToApply($ini)
-TraySetState()
+TraySetState(1)
 ;initiate watchdog
 ;~ _PowerKeepAlive()
 if $noSleep Then
@@ -108,7 +113,7 @@ if $noSleep Then
 Else
     _PowerResetState()
 EndIf
-$pid = Run('lmwatchdog.exe --mohafez', @ScriptDir, @SW_HIDE)
+$pid = _StartWatchdog()
 TraySetToolTip($title&" is enabled.")
 
 While 1
@@ -204,7 +209,7 @@ EndFunc
 
 Func _guard()
     If Not $enabled Then ;enable it
-        $pid = Run('lmwatchdog.exe --mohafez', @ScriptDir, @SW_HIDE)
+        $pid = _StartWatchdog()
         TraySetToolTip($title&" is enabled.")
         TraySetIcon(@ScriptFullPath, 201)
         TrayItemSetState($enableTray,$TRAY_CHECKED)
@@ -220,6 +225,12 @@ Func _guard()
         _noSleep()
         ;~ ConsoleWrite('sessionguard disabled'&@LF)
     EndIf
+EndFunc
+
+Func _StartWatchdog()
+    Local $command = '"' & @ScriptFullPath & '" --watchdog'
+    If Not @Compiled Then $command = '"' & @AutoItExe & '" ' & $command
+    Return Run($command, @ScriptDir, @SW_HIDE)
 EndFunc
 
 Func _noSleep()
