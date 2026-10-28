@@ -76,6 +76,13 @@ jobs:
           AUTOIT_DIRECTORY: ${{ steps.tools.outputs.autoit_directory }}
           WRAPPER_PATH: ${{ steps.tools.outputs.autoit3wrapper_path }}
         run: '& scripts/build-windows.ps1 -Version $env:BUILD_VERSION -AutoItDirectory $env:AUTOIT_DIRECTORY -AutoIt3WrapperPath $env:WRAPPER_PATH'
+      - name: Test unsigned and incomplete signing configurations
+        shell: pwsh
+        env:
+          BUILD_VERSION: ${{ needs.check.outputs.version }}
+          STAGE_DIRECTORY: ${{ steps.application.outputs.output_directory }}
+          ISCC_PATH: ${{ steps.tools.outputs.iscc_path }}
+        run: '& tests/SigningSmoke.ps1 -Version $env:BUILD_VERSION -StageDirectory $env:STAGE_DIRECTORY -IsccPath $env:ISCC_PATH'
       - name: Package and verify
         shell: pwsh
         env:
@@ -83,6 +90,8 @@ jobs:
           STAGE_DIRECTORY: ${{ steps.application.outputs.output_directory }}
           ISCC_PATH: ${{ steps.tools.outputs.iscc_path }}
           COMMIT_SHA: ${{ github.sha }}
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: '& scripts/package-windows.ps1 -Version $env:BUILD_VERSION -StageDirectory $env:STAGE_DIRECTORY -DistDirectory dist -IsccPath $env:ISCC_PATH -Commit $env:COMMIT_SHA'
       - name: Upload verified Windows packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

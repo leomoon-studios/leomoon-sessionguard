@@ -20,8 +20,16 @@ foreach ($line in $lines) {
 }
 if ((($names | Sort-Object) -join "`n") -ne ((@($zip,$setup,'release-manifest.json') | Sort-Object) -join "`n")) { throw 'Checksum names do not match artifacts.' }
 $manifest = Get-Content -LiteralPath (Join-Path $dir 'release-manifest.json') -Raw | ConvertFrom-Json
-if ($manifest.application -ne 'LeoMoon SessionGuard' -or $manifest.version -ne $Version -or $manifest.fileVersion -ne "$Version.0" -or $manifest.architecture -ne 'x86' -or $manifest.platform -ne 'windows' -or $manifest.signed -ne $false) { throw 'Invalid manifest.' }
+if ($manifest.application -ne 'LeoMoon SessionGuard' -or $manifest.version -ne $Version -or $manifest.fileVersion -ne "$Version.0" -or $manifest.architecture -ne 'x86' -or $manifest.platform -ne 'windows' -or $manifest.signed -isnot [bool]) { throw 'Invalid manifest.' }
 if ((@($manifest.artifacts | Sort-Object) -join "`n") -ne ((@($zip,$setup) | Sort-Object) -join "`n")) { throw 'Invalid manifest artifacts.' }
+function Assert-Signature([string]$Path, [bool]$Signed) {
+    $signature = Get-AuthenticodeSignature -LiteralPath $Path
+    if ($Signed) {
+        if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate) { throw "Invalid or untimestamped signature: $Path" }
+    } elseif ($signature.Status -ne 'NotSigned') {
+        throw "Expected an unsigned executable: $Path"
+    }
+}
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [IO.Compression.ZipFile]::OpenRead((Join-Path $dir $zip))
 try {
@@ -36,8 +44,10 @@ try {
         [IO.File]::WriteAllBytes($temporary, $bytes)
         $info = [Diagnostics.FileVersionInfo]::GetVersionInfo($temporary)
         if ($info.FileVersion -ne "$Version.0" -or $info.ProductVersion -ne "$Version.0") { throw 'Portable executable version mismatch.' }
+        Assert-Signature $temporary $manifest.signed
     } finally { Remove-Item -LiteralPath $temporary -Force }
 } finally { $archive.Dispose() }
 $setupInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $dir $setup))
 if ($setupInfo.FileVersion.Trim() -ne "$Version.0" -or $setupInfo.ProductVersion.Trim() -ne "$Version.0") { throw 'Installer version mismatch.' }
+Assert-Signature (Join-Path $dir $setup) $manifest.signed
 Write-Host 'Package verification passed.'
