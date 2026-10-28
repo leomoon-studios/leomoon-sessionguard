@@ -1,10 +1,10 @@
 #include-once
-Global $enabled = True, $pid = 0, $aboutTray, $enableTray, $settingsTray, $leomoonSiteTray, $exitTray
+Global $enabled = False, $aboutTray, $enableTray, $settingsTray, $leomoonSiteTray, $exitTray
 
 Func _TrayHandleEvent($event)
     Switch $event
         Case $exitTray
-            ProcessClose($pid)
+            _WatchdogStop()
             Return True
         Case $TRAY_EVENT_PRIMARYDOUBLE, $enableTray
             _guard()
@@ -21,27 +21,47 @@ Func _TraySetHotkey($hotkey)
 EndFunc
 
 Func _TrayShow()
-    TraySetToolTip($title & ' is enabled.')
+    _TraySetGuardState(False)
     TraySetState(1)
 EndFunc
 
 Func _guard()
-    If Not $enabled Then ;enable it
-        $pid = _StartWatchdog()
-        TraySetToolTip($title&" is enabled.")
-        TraySetIcon(@ScriptFullPath, 201)
-        TrayItemSetState($enableTray,$TRAY_CHECKED)
-        $enabled = True
-        _noSleep()
-        ;~ ConsoleWrite('sessionguard enabled'&@LF)
+    If Not $enabled Then
+        If Not _WatchdogStart() Then
+            _TraySetGuardState(False)
+            _ExtMsgBox(48, 'OK', 'Protection unavailable', 'SessionGuard could not start its shutdown protection. Check that the application can run a second instance, then try again.', 0)
+            Return
+        EndIf
+        _TraySetGuardState(True)
     Else
-        ProcessClose($pid)
-        TraySetToolTip($title&" is disabled.")
+        If Not _WatchdogStop() Then
+            _ExtMsgBox(48, 'OK', 'Protection still active', 'SessionGuard could not stop its shutdown protection. Try disabling it again.', 0)
+            Return
+        EndIf
+        _TraySetGuardState(False)
+    EndIf
+    _noSleep()
+EndFunc
+
+Func _TraySetGuardState($state)
+    $enabled = $state
+    If $state Then
+        TraySetToolTip($title & ' is enabled.')
+        TraySetIcon(@ScriptFullPath, 201)
+        TrayItemSetState($enableTray, $TRAY_CHECKED)
+    Else
+        TraySetToolTip($title & ' is disabled.')
         TraySetIcon(@ScriptFullPath, 202)
-        TrayItemSetState($enableTray,$TRAY_UNCHECKED)
-        $enabled = False
+        TrayItemSetState($enableTray, $TRAY_UNCHECKED)
+    EndIf
+EndFunc
+
+Func _TrayCheckWatchdog()
+    If $enabled And Not _WatchdogRunning() Then
+        _WatchdogStop()
+        _TraySetGuardState(False)
         _noSleep()
-        ;~ ConsoleWrite('sessionguard disabled'&@LF)
+        _ExtMsgBox(48, 'OK', 'Protection stopped', 'The shutdown protection stopped unexpectedly. Guarding is now disabled; try enabling it again.', 0)
     EndIf
 EndFunc
 
@@ -65,7 +85,7 @@ Func _TrayCreate()
     TrayItemSetState(-1, $TRAY_DISABLE)
     TrayCreateItem('')
     $enableTray = TrayCreateItem('Guard My Session!')
-    TrayItemSetState(-1, $TRAY_CHECKED)
+    TrayItemSetState(-1, $TRAY_UNCHECKED)
     TrayCreateItem('')
     $settingsTray = TrayCreateItem('Settings...')
     TrayCreateItem('')

@@ -34,6 +34,7 @@
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <GuiComboBox.au3>
+#include "app/WatchdogController.au3"
 #include "watchdog/Watchdog.au3"
 #include "core/HotkeyCodec.au3"
 #include "core/Settings.au3"
@@ -41,12 +42,13 @@
 #include "app/StartupRegistration.au3"
 
 ; The helper must branch before either the main singleton or tray is created.
-If $CmdLine[0] = 1 And $CmdLine[1] = '--watchdog' Then
-    _WatchdogRun()
+If $CmdLine[0] > 0 And $CmdLine[1] = '--watchdog' Then
+    If $CmdLine[0] = 3 Then _WatchdogRun($CmdLine[2], $CmdLine[3])
     Exit
 EndIf
 
 OnAutoItExitRegister("_PowerResetState")
+OnAutoItExitRegister("_WatchdogStop")
 
 ;global vars
 Global $title = $APP_NAME
@@ -82,16 +84,10 @@ _TrayCreate()
 _readHotkey($ini)
 _iniToApply($ini)
 _TrayShow()
-;initiate watchdog
-;~ _PowerKeepAlive()
-if $noSleep Then
-    Global $power = _PowerKeepAlive()
-Else
-    _PowerResetState()
-EndIf
-$pid = _StartWatchdog()
+_guard()
 
 While 1
+    _TrayCheckWatchdog()
     If $enabled And $emu And StringIsDigit($emuVal) And _Timer_GetIdleTime()/1000 > $emuVal Then
         Local $aPos = MouseGetPos()
         MouseMove($aPos[0],$aPos[1],0)
@@ -123,12 +119,6 @@ Exit
 ;########## FUNCTIONS #####################################
 ;##########################################################
 
-
-Func _StartWatchdog()
-    Local $command = '"' & @ScriptFullPath & '" --watchdog'
-    If Not @Compiled Then $command = '"' & @AutoItExe & '" ' & $command
-    Return Run($command, @ScriptDir, @SW_HIDE)
-EndFunc
 
 Func _noSleep()
     if $enabled And $noSleep Then

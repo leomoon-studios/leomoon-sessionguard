@@ -15,6 +15,7 @@
 Global $title = $APP_NAME, $ver = $APP_VERSION, $activeHotkey = ''
 Global $ini = @TempDir & '\SessionGuard-desktop-test-' & @AutoItPID & '.ini'
 Global $failures = 0
+Global $testPid = 0
 #include "../src/app/TrayController.au3"
 #include "../src/gui/SettingsWindow.au3"
 
@@ -26,8 +27,16 @@ Func _assert($condition, $message)
 EndFunc
 
 ; Simulate guard lifecycle with a process owned by this test, not the real watchdog.
-Func _StartWatchdog()
-    Return Run(@SystemDir & '\ping.exe -n 30 127.0.0.1', @TempDir, @SW_HIDE)
+Func _WatchdogStart()
+    $testPid = Run(@SystemDir & '\ping.exe -n 30 127.0.0.1', @TempDir, @SW_HIDE)
+    Return $testPid <> 0
+EndFunc
+Func _WatchdogStop()
+    If $testPid Then ProcessClose($testPid)
+    Return True
+EndFunc
+Func _WatchdogRunning()
+    Return $testPid <> 0 And ProcessExists($testPid)
 EndFunc
 Func _noSleep()
 EndFunc
@@ -56,16 +65,16 @@ _SettingsWindowClose()
 If $activeHotkey <> '' Then HotKeySet($activeHotkey)
 
 ; Exercise tray toggles with a private child process.
-$pid = _StartWatchdog()
-_assert(ProcessExists($pid), 'test child started')
+_guard()
+_assert(ProcessExists($testPid), 'test child started')
 _TrayHandleEvent($enableTray)
-ProcessWaitClose($pid, 2)
-_assert(Not $enabled And Not ProcessExists($pid), 'tray disables guard and stops child')
+ProcessWaitClose($testPid, 2)
+_assert(Not $enabled And Not ProcessExists($testPid), 'tray disables guard and stops child')
 _TrayHandleEvent($TRAY_EVENT_PRIMARYDOUBLE)
-_assert($enabled And ProcessExists($pid), 'double click enables guard and starts child')
+_assert($enabled And ProcessExists($testPid), 'double click enables guard and starts child')
 _assert(_TrayHandleEvent($exitTray), 'exit event')
-ProcessWaitClose($pid, 2)
-_assert(Not ProcessExists($pid), 'exit stops child')
+ProcessWaitClose($testPid, 2)
+_assert(Not ProcessExists($testPid), 'exit stops child')
 
 Local $key = 'HKEY_CURRENT_USER\Software\SessionGuardDesktopTest-' & @AutoItPID
 _assert(_StartupSet(True, $key, 'Test'), 'startup write')
