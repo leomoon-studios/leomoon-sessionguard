@@ -12,21 +12,28 @@ $installed = Join-Path $dir 'LeoMoon SessionGuard.exe'
 $uninstaller = Join-Path $dir 'unins000.exe'
 $uninstalled = $false
 try {
-    $args = '/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="" /DIR="' + $dir + '"'
+    $args = '/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="' + $dir + '"'
     $p = Start-Process -FilePath $setup -ArgumentList $args -WindowStyle Hidden -PassThru -Wait
     if ($p.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $installed)) { throw 'Installation failed.' }
+    if ((Get-Item -LiteralPath $run).GetValue($name) -ne ('"' + $installed + '"')) { throw 'Default install did not enable startup.' }
     & (Join-Path $PSScriptRoot 'BuildSmoke.ps1') -Executable $installed
     $ini = Join-Path $dir 'LeoMoon SessionGuard.ini'
     [IO.File]::WriteAllText($ini, "[Options]`r`nMain=^!1`r`n")
     $p = Start-Process -FilePath $setup -ArgumentList $args -WindowStyle Hidden -PassThru -Wait
     if ($p.ExitCode -ne 0 -or [IO.File]::ReadAllText($ini) -ne "[Options]`r`nMain=^!1`r`n") { throw 'Upgrade did not preserve settings.' }
-    New-ItemProperty -LiteralPath $run -Name $name -Value ('"' + $installed + '"') -PropertyType String -Force | Out-Null
     $p = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -WindowStyle Hidden -PassThru -Wait
     if ($p.ExitCode -ne 0) { throw 'Uninstall failed.' }
     $uninstalled = $true
     if ((Get-Item -LiteralPath $run).GetValueNames() -contains $name) { throw 'Uninstall left the startup entry.' }
     if (-not (Test-Path -LiteralPath $ini)) { throw 'Uninstall did not preserve settings.' }
     if (Get-Process -Name $name -ErrorAction SilentlyContinue) { throw 'SessionGuard process remains.' }
+    $uninstalled = $false
+    $uncheckedArgs = $args + ' /TASKS=""'
+    $p = Start-Process -FilePath $setup -ArgumentList $uncheckedArgs -WindowStyle Hidden -PassThru -Wait
+    if ($p.ExitCode -ne 0 -or (Get-Item -LiteralPath $run).GetValueNames() -contains $name) { throw 'Unchecked startup was not respected.' }
+    $p = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -WindowStyle Hidden -PassThru -Wait
+    if ($p.ExitCode -ne 0) { throw 'Unchecked-startup uninstall failed.' }
+    $uninstalled = $true
     Write-Host 'Installer smoke checks passed.'
 } finally {
     if (-not $uninstalled -and (Test-Path -LiteralPath $uninstaller)) {

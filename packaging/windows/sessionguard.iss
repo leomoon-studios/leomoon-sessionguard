@@ -28,6 +28,7 @@ SolidCompression=yes
 CloseApplications=yes
 CloseApplicationsFilter={#AppExeName}
 RestartApplications=no
+UsePreviousTasks=no
 UninstallDisplayIcon={app}\{#AppExeName}
 WizardStyle=modern
 
@@ -36,6 +37,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "startup"; Description: "Start LeoMoon SessionGuard with Windows for the current user"; GroupDescription: "Additional tasks:"
 
 [Files]
 Source: "{#StageDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
@@ -44,14 +46,6 @@ Source: "{#StageDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
-[Code]
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-var CurrentValue, InstalledValue: String;
-begin
-  if CurUninstallStep = usUninstall then begin
-    InstalledValue := '"' + ExpandConstant('{app}\{#AppExeName}') + '"';
-    if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#AppName}', CurrentValue) and
-       (CompareText(CurrentValue, InstalledValue) = 0) then
-      RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#AppName}');
-  end;
-end;
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppName}"; ValueData: """{app}\{#AppExeName}"""; Tasks: startup; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "{#AppName}"; Tasks: not startup; Flags: deletevalue
