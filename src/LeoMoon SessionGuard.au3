@@ -86,7 +86,7 @@ _readHotkey($ini)
 _iniToApply($ini)
 _TrayShow()
 _guard()
-Local $idleTimer = TimerInit()
+Global $idleTimer = TimerInit(), $nMsg, $tMsg
 
 While 1
     _TrayCheckWatchdog()
@@ -150,7 +150,7 @@ EndFunc
 
 
 Func _centerWindow($win)
-    $size = WinGetClientSize($win, '')
+    Local $size = WinGetClientSize($win, '')
     Local $y = (@DesktopHeight / 2) - ($size[1] / 2)
     Local $x = (@DesktopWidth / 2) - ($size[0] / 2)
     Return WinMove($win, '', $x, $y)
