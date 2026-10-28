@@ -111,7 +111,7 @@ jobs:
       contents: write
     steps:
       - name: Download verified packages
-        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: sessionguard-${{ needs.check.outputs.version }}-windows-x86-${{ github.sha }}
           path: dist
