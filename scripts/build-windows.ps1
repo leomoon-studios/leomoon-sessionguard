@@ -32,3 +32,4 @@ $bytes = [IO.File]::ReadAllBytes($exe)
 $offset = [BitConverter]::ToInt32($bytes, 0x3c)
 if ([BitConverter]::ToUInt16($bytes, $offset + 4) -ne 0x14c) { throw 'Compiled executable is not x86.' }
 Write-Host "Built $exe"
+if ($env:GITHUB_OUTPUT) { "output_directory=$output" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append }

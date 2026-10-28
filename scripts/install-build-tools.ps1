@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$ToolsDirectory)
+param([Parameter(Mandatory = $true)][string]$ToolsDirectory, [switch]$IncludeInno)
 $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath($ToolsDirectory)
 New-Item -ItemType Directory -Force -Path $root | Out-Null
@@ -22,3 +22,23 @@ foreach ($path in @((Join-Path $autoit 'AutoIt3.exe'), (Join-Path $autoit 'Au3Ch
 }
 Write-Host "AutoIt directory: $autoit"
 Write-Host "AutoIt3Wrapper: $wrapper"
+if ($env:GITHUB_OUTPUT) {
+    "autoit_directory=$autoit" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+    "autoit3wrapper_path=$wrapper" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+}
+if ($IncludeInno) {
+    $inno = Join-Path $root 'inno'
+    if (Test-Path -LiteralPath $inno) { throw "Destination already exists: $inno" }
+    $installer = Join-Path $root 'inno-setup.exe'
+    $url = 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe'
+    $hash = '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732'
+    Invoke-WebRequest -Uri $url -OutFile $installer
+    if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $hash) { throw 'Inno Setup checksum mismatch.' }
+    $arguments = '/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /PORTABLE=1 /DIR="' + $inno + '"'
+    $process = Start-Process -FilePath $installer -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
+    if ($process.ExitCode -ne 0) { throw "Inno Setup installation failed: $($process.ExitCode)" }
+    $iscc = Get-ChildItem -LiteralPath $inno -Filter ISCC.exe -File -Recurse | Select-Object -First 1
+    if (-not $iscc) { throw 'ISCC.exe not found.' }
+    if ($env:GITHUB_OUTPUT) { "iscc_path=$($iscc.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append }
+    Write-Host "Inno Setup compiler: $($iscc.FullName)"
+}
