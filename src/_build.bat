@@ -14,9 +14,5 @@ pushd "%~dp0"
 if not exist "..\build" mkdir "..\build"
 "%AUTOIT_HOME%\AutoIt3.exe" "%wrapper%" /in "LeoMoon SessionGuard.au3" /NoStatus
 if errorlevel 1 (popd & exit /b 1)
-if not exist "..\build\LeoMoon SessionGuard.ini" (
-    copy "LeoMoon SessionGuard.ini" "..\build\LeoMoon SessionGuard.ini" >nul
-    if errorlevel 1 (popd & exit /b 1)
-)
 popd
 echo Built unsigned LeoMoon SessionGuard in build.

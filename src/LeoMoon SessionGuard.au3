@@ -38,6 +38,8 @@
 #include "watchdog/Watchdog.au3"
 #include "core/HotkeyCodec.au3"
 #include "core/Settings.au3"
+#include "core/PowerState.au3"
+#include "core/IdleGuard.au3"
 #include "core/AppConstants.au3"
 #include "app/StartupRegistration.au3"
 
@@ -47,7 +49,7 @@ If $CmdLine[0] > 0 And $CmdLine[1] = '--watchdog' Then
     Exit
 EndIf
 
-OnAutoItExitRegister("_PowerResetState")
+OnAutoItExitRegister("_PowerCleanup")
 OnAutoItExitRegister("_WatchdogStop")
 
 ;global vars
@@ -59,7 +61,6 @@ Global $emuVal = 30
 Global $ini = @ScriptDir&'\'&$title&'.ini'
 Global $activeHotkey = ''
 ;global gui vars
-Global $power
 #include "app/TrayController.au3"
 #include "gui/SettingsWindow.au3"
 
@@ -85,13 +86,16 @@ _readHotkey($ini)
 _iniToApply($ini)
 _TrayShow()
 _guard()
+Local $idleTimer = TimerInit()
 
 While 1
     _TrayCheckWatchdog()
-    If $enabled And $emu And StringIsDigit($emuVal) And _Timer_GetIdleTime()/1000 > $emuVal Then
-        Local $aPos = MouseGetPos()
-        MouseMove($aPos[0],$aPos[1],0)
-        ;~ ConsoleWrite('moving mouse to '&$aPos[0]&', '&$aPos[1]&', wait: '&$emuVal&@LF)
+    If TimerDiff($idleTimer) >= 250 Then
+        $idleTimer = TimerInit()
+        If Not _IdleCheck($enabled, $emu, $emuVal) Then
+            $emu = False
+            _ExtMsgBox(48, 'OK', 'Mouse activity error', 'Mouse activity could not be simulated. It has been disabled until settings are reapplied.', 0)
+        EndIf
     EndIf
     $nMsg = GUIGetMsg()
     Switch $nMsg
@@ -121,12 +125,11 @@ Exit
 
 
 Func _noSleep()
-    if $enabled And $noSleep Then
-        $power = _PowerKeepAlive()
-    Else
-        _PowerResetState()
+    If Not _PowerSet($enabled And $noSleep) Then
+        _ExtMsgBox(48, 'OK', 'Power state error', 'SessionGuard could not update the sleep-prevention request.', 0)
+        Return False
     EndIf
-    ;~ ConsoleWrite($noSleep&@LF)
+    Return True
 EndFunc
 
 
@@ -151,19 +154,4 @@ Func _centerWindow($win)
     Local $y = (@DesktopHeight / 2) - ($size[1] / 2)
     Local $x = (@DesktopWidth / 2) - ($size[0] / 2)
     Return WinMove($win, '', $x, $y)
-EndFunc
-
-Func _PowerKeepAlive()
-    Local $aRet=DllCall('kernel32.dll','long','SetThreadExecutionState','long',0x80000003)
-    If @error Then Return SetError(2,@error,0x80000000)
-    ;~ ConsoleWrite('noSleep enabled - '&$aRet[0]&@LF)
-    Return $aRet[0] ;previous state (typically 0x80000000 [-2147483648])
-EndFunc
-
-Func _PowerResetState()
-    ;flag: ES_CONTINUOUS (0x80000000) -> (default) -> used alone, it resets timers & allows regular sleep/power-savings mode
-    Local $aRet=DllCall('kernel32.dll','long','SetThreadExecutionState','long',$power)
-    If @error Then Return SetError(2,@error,0x80000000)
-    ;~ ConsoleWrite('noSleep reset - '&$aRet[0]&@LF)
-    Return $aRet[0] ;previous state
 EndFunc

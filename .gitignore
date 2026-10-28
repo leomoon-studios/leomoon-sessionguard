@@ -4,5 +4,6 @@
 .project
 .settings/
 .vscode/
-
 build/
+*.ini
+!tests/fixtures/*.ini

@@ -1,7 +1,11 @@
 #include "../src/core/HotkeyCodec.au3"
 #include "../src/core/Settings.au3"
+#include "../src/core/PowerState.au3"
+#include "../src/core/IdleGuard.au3"
 
 Global $failures = 0
+Global $fakePowerCalls = 0, $fakePowerFlags = 0, $fakePowerFails = False, $fakeWarnings = 0
+Global $fakeIdle = 0, $fakeIdleReads = 0, $fakeMoves = 0, $fakeIdleFails = False, $fakeMoveFails = False
 Func _assert($condition, $message)
     If Not $condition Then
         ConsoleWrite('FAIL: ' & $message & @CRLF)
@@ -54,10 +58,74 @@ If Not @error And $reservation[0] Then
 Else
     ConsoleWrite('SKIP: could not reserve test hotkey' & @CRLF)
 EndIf
+
+; All power and input boundaries below are fakes; the cursor is never moved.
+$g_powerCall = '_FakePower'
+_assert(_PowerSet(False) And $fakePowerCalls = 0, 'no restore without ownership')
+$fakePowerFails = True
+_assert(Not _PowerSet(True) And Not $g_powerOwned, 'failed request is not owned')
+$fakePowerFails = False
+_assert(_PowerSet(True) And $g_powerOwned, 'acquire power request')
+Local $callsAfterAcquire = $fakePowerCalls
+_assert(_PowerSet(True) And $fakePowerCalls = $callsAfterAcquire, 'repeated enable preserves original state')
+$fakePowerFails = True
+_assert(Not _PowerSet(False) And $g_powerOwned, 'failed restore retains ownership')
+$fakePowerFails = False
+_assert(_PowerSet(False) And Not $g_powerOwned And $fakePowerFlags = 0x80000002, 'restore previous state')
+_assert(_PowerSet(True), 'reacquire for exit')
+_PowerCleanup()
+_assert(Not $g_powerOwned And $fakeWarnings = 0, 'exit cleanup releases request')
+_assert(_PowerSet(True), 'reacquire for failed exit')
+$fakePowerFails = True
+_PowerCleanup()
+_assert($g_powerOwned And $fakeWarnings = 1, 'exit cleanup reports failure')
+$fakePowerFails = False
+_assert(_PowerSet(False), 'retry failed cleanup')
+
+$g_idleRead = '_FakeIdleRead'
+$g_idleMove = '_FakeIdleMove'
+_assert(_IdleCheck(False, True, 5) And $fakeIdleReads = 0 And $fakeMoves = 0, 'disabled guard does not read or move')
+_assert(_IdleCheck(True, False, 5) And $fakeIdleReads = 0, 'disabled emulation does not read or move')
+_assert(Not _IdleCheck(True, True, 0), 'zero interval rejected')
+_assert(Not _IdleCheck(True, True, 86401), 'oversized interval rejected')
+$fakeIdle = 4999
+_assert(_IdleCheck(True, True, 5) And $fakeMoves = 0, 'below interval does not move')
+$fakeIdle = 5000
+_assert(_IdleCheck(True, True, 5) And $fakeMoves = 1, 'interval boundary moves once')
+$fakeIdleFails = True
+_assert(Not _IdleCheck(True, True, 5) And $fakeMoves = 1, 'idle read failure reported')
+$fakeIdleFails = False
+$fakeMoveFails = True
+_assert(Not _IdleCheck(True, True, 5), 'mouse move failure reported')
+
 FileDelete($file)
 DirRemove($dir)
-ConsoleWrite('Settings failures: ' & $failures & @CRLF)
+ConsoleWrite('Test failures: ' & $failures & @CRLF)
 Exit $failures
 
 Func _unused()
+EndFunc
+
+Func _FakePower($flags)
+    $fakePowerCalls += 1
+    $fakePowerFlags = $flags
+    If $fakePowerFails Then Return SetError(1, 0, 0)
+    Return 0x80000002
+EndFunc
+
+Func _FakeIdleRead()
+    $fakeIdleReads += 1
+    If $fakeIdleFails Then Return SetError(1, 0, 0)
+    Return $fakeIdle
+EndFunc
+
+Func _FakeIdleMove()
+    $fakeMoves += 1
+    If $fakeMoveFails Then Return SetError(1, 0, False)
+    Return True
+EndFunc
+
+Func _ExtMsgBox($icon, $buttons, $caption, $message, $timeout)
+    #forceref $icon, $buttons, $caption, $message, $timeout
+    $fakeWarnings += 1
 EndFunc
