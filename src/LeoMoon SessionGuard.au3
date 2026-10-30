@@ -42,6 +42,7 @@
 #include "core/IdleGuard.au3"
 #include "core/AppConstants.au3"
 #include "app/StartupRegistration.au3"
+#include "app/DpiScaling.au3"
 
 ; The helper must branch before either the main singleton or tray is created.
 If $CmdLine[0] > 0 And $CmdLine[1] = '--watchdog' Then
@@ -49,6 +50,7 @@ If $CmdLine[0] > 0 And $CmdLine[1] = '--watchdog' Then
     Exit
 EndIf
 
+_EnableGdiScaling()
 OnAutoItExitRegister("_PowerCleanup")
 OnAutoItExitRegister("_WatchdogStop")
 

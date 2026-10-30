@@ -11,6 +11,7 @@
 #include "../src/core/Settings.au3"
 #include "../src/core/HotkeyCodec.au3"
 #include "../src/app/StartupRegistration.au3"
+#include "../src/app/DpiScaling.au3"
 
 Global $title = $APP_NAME, $ver = $APP_VERSION, $activeHotkey = ''
 Global $ini = @TempDir & '\SessionGuard-desktop-test-' & @AutoItPID & '.ini'
@@ -18,6 +19,10 @@ Global $failures = 0
 Global $testPid = 0
 #include "../src/app/TrayController.au3"
 #include "../src/gui/SettingsWindow.au3"
+
+If $CmdLine[0] And $CmdLine[1] = 'gdi' Then
+    If Not _EnableGdiScaling() Then Exit 2
+EndIf
 
 Func _assert($condition, $message)
     If Not $condition Then
@@ -45,7 +50,17 @@ _assert(_SettingsSave($ini, '^!+{F11}', 0, 30, 0), 'create isolated settings')
 _TrayCreate()
 TraySetState(1)
 _gui()
-Local $first = $gui
+Global $first = $gui
+If $CmdLine[0] And $CmdLine[1] = 'gdi' Then
+    Global $context = DllCall('user32.dll', 'handle', 'GetWindowDpiAwarenessContext', 'hwnd', $gui)
+    Global $equal = DllCall('user32.dll', 'bool', 'AreDpiAwarenessContextsEqual', 'handle', $context[0], 'ptr', -5)
+    _assert(Not @error And $equal[0], 'Settings uses GDI-scaled DPI context')
+    _TraySetIcon(True)
+    _TraySetIcon(False)
+    $context = DllCall('user32.dll', 'handle', 'GetThreadDpiAwarenessContext')
+    $equal = DllCall('user32.dll', 'bool', 'AreDpiAwarenessContextsEqual', 'handle', $context[0], 'ptr', -5)
+    _assert(Not @error And $equal[0], 'tray icon loading restores DPI context')
+EndIf
 _gui()
 _assert($gui = $first And $winVis, 'reopen activates existing window')
 GUICtrlSetState($emuCbox, $GUI_CHECKED)
@@ -76,7 +91,7 @@ _assert(_TrayHandleEvent($exitTray), 'exit event')
 ProcessWaitClose($testPid, 2)
 _assert(Not ProcessExists($testPid), 'exit stops child')
 
-Local $key = 'HKEY_CURRENT_USER\Software\SessionGuardDesktopTest-' & @AutoItPID
+Global $key = 'HKEY_CURRENT_USER\Software\SessionGuardDesktopTest-' & @AutoItPID
 _assert(_StartupSet(True, $key, 'Test'), 'startup write')
 _assert(_StartupIsEnabled($key, 'Test'), 'startup read')
 _assert(_StartupSet(False, $key, 'Test'), 'startup delete')

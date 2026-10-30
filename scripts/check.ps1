@@ -8,7 +8,7 @@ foreach ($path in @($checker, $autoit)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing tool: $path" }
 }
 $tests = @((Join-Path $root 'tests\TestRunner.au3'), (Join-Path $root 'tests\TraySmoke.au3'))
-$targets = @((Join-Path $root 'src\LeoMoon SessionGuard.au3')) + $tests
+$targets = @((Join-Path $root 'src\LeoMoon SessionGuard.au3'), (Join-Path $root 'tests\DesktopSmoke.au3')) + $tests
 foreach ($target in $targets) {
     & $checker -q -d -w 1 -w 2 -w 3 -w 4 -w 5 -w 6 -w- 7 -I (Join-Path $root 'src') $target
     if ($LASTEXITCODE -ne 0) { throw "Au3Check failed: $target" }

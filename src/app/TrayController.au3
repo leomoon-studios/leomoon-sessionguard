@@ -1,6 +1,21 @@
 #include-once
 Global $enabled = False, $aboutTray, $enableTray, $settingsTray, $leomoonSiteTray, $exitTray
 
+Func _TraySetIcon($state)
+    ; Load the multi-resolution icon at the physical small-icon size.
+    Local $previous = DllCall('user32.dll', 'handle', 'SetThreadDpiAwarenessContext', 'ptr', -4)
+    If @Compiled Then
+        Local $resource = 201
+        If Not $state Then $resource = 202
+        TraySetIcon(@ScriptFullPath, $resource)
+    Else
+        Local $icon = @ScriptDir & '\resources\main.ico'
+        If Not $state Then $icon = @ScriptDir & '\resources\disabled.ico'
+        TraySetIcon($icon)
+    EndIf
+    If IsArray($previous) And $previous[0] Then DllCall('user32.dll', 'handle', 'SetThreadDpiAwarenessContext', 'handle', $previous[0])
+EndFunc
+
 Func _TrayHandleEvent($event)
     Switch $event
         Case $exitTray
@@ -47,11 +62,11 @@ Func _TraySetGuardState($state)
     $enabled = $state
     If $state Then
         TraySetToolTip($title & ' is enabled.')
-        TraySetIcon(@ScriptFullPath, 201)
+        _TraySetIcon(True)
         TrayItemSetState($enableTray, $TRAY_CHECKED)
     Else
         TraySetToolTip($title & ' is disabled.')
-        TraySetIcon(@ScriptFullPath, 202)
+        _TraySetIcon(False)
         TrayItemSetState($enableTray, $TRAY_UNCHECKED)
     EndIf
 EndFunc

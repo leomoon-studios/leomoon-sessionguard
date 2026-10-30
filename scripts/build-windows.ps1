@@ -26,6 +26,27 @@ $autoit = Join-Path $AutoItDirectory 'AutoIt3.exe'
 $arguments = '"' + $AutoIt3WrapperPath + '" /in "' + $main + '" /out "' + $exe + '" /x86 /NoStatus /NoPack /AutoIt3Dir "' + $AutoItDirectory + '"'
 $process = Start-Process -FilePath $autoit -ArgumentList $arguments -WorkingDirectory $source -WindowStyle Hidden -PassThru -Wait
 if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $exe)) { throw 'Compilation failed.' }
+if (-not ('SessionGuardBuildResources' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class SessionGuardBuildResources {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr LoadLibraryEx(string path, IntPtr file, uint flags);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr FindResource(IntPtr module, IntPtr name, IntPtr type);
+    [DllImport("kernel32.dll")]
+    public static extern bool FreeLibrary(IntPtr module);
+}
+'@
+}
+$module = [SessionGuardBuildResources]::LoadLibraryEx($exe, [IntPtr]::Zero, 2)
+if ($module -eq [IntPtr]::Zero) { throw 'Unable to inspect compiled icon resources.' }
+try {
+    foreach ($iconId in @(201, 202)) {
+        if ([SessionGuardBuildResources]::FindResource($module, [IntPtr]$iconId, [IntPtr]14) -eq [IntPtr]::Zero) { throw "Missing tray icon group $iconId." }
+    }
+} finally { [void][SessionGuardBuildResources]::FreeLibrary($module) }
 $info = [Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
 if ($info.FileVersion -ne "$Version.0" -or $info.ProductVersion -ne "$Version.0") { throw 'Compiled version does not match.' }
 $bytes = [IO.File]::ReadAllBytes($exe)

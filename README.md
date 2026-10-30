@@ -10,6 +10,8 @@ The portable ZIP must be extracted to a writable folder. The per-user installer 
 
 Run SessionGuard, then use Ctrl + Win + Period to enable or disable guarding. You can change the shortcut from the tray menu's Settings window.
 
+On supported Windows versions, SessionGuard uses GDI scaling to keep text and controls sharp on high-DPI displays. Restart the app after changing display scaling if its windows or tray icon do not update as expected.
+
 ## Local build
 
 Install AutoIt and SciTE4AutoIt3, including AutoIt3Wrapper. In Command Prompt, set `AUTOIT_HOME` to the AutoIt installation directory and run:

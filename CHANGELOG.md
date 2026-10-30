@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Improved high-DPI scaling for the tray menu, Settings window, and tray icons.
+
 ## 2.0.0 - 2026-10-27
 
 - Combined SessionGuard and its watchdog into one executable with a separate hidden watchdog process.
