@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.1 - 2026-10-29
 
 - Improved high-DPI scaling for the tray menu, Settings window, and tray icons.
 
